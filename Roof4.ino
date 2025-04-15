@@ -336,13 +336,13 @@ void setup() {
 
 void loop() {
   int flag = 0;
-  unsigned long m1, z1 = 0ul;
+  unsigned long m1, z1 = 0ul, z2 = 0ul, z3 = 0ul;
   server.handleClient();  // OTA
   loopStart = millis();
   qtClient.loop(); // keep MQTT going
   
   // Loop timing zones start here
-  
+  m1 = millis();
   // ZONE 1: EVERY LOOP (1/4 sec) ----------------------------------------------------------------- 
   wi.updateMaxGust(); // 4 times/sec to catch gusts
   flag = wi.updateMeteo(loopCount, rptIntvl);  // updateMeteo uses loopCount to decide when to update each Meteo
@@ -354,14 +354,18 @@ void loop() {
     flag = flag | 256;
     //shedRequested();  // responds to any shed messages received (hourly)
   }
+  z3 = millis() - m1;
+
   // END ZONE 4 -----------------------------------------------------------------------------------
   
   // ZONE 12: EVERY 12 LOOPS (3 secs) -------------------------------------------------------------
   if ((loopCount % ZONE12) == 0) {
+    m1 = millis();
     if (!qtReconnect()) { // checks connection and attempts retry if none
       postMessage("MQTT failed");
     }
     blink();  // "normal" 3 second blink
+    z2 = millis() - m1;
     flag = flag | 512;
   }
   // END ZONE 12 ----------------------------------------------------------------------------------
@@ -391,7 +395,7 @@ void loop() {
   
   //Loop timing zones end here--------------------------------------------------------------------
 
-  loopTimer(flag, z1);
+  loopTimer(flag, z1, z2, z3);
   loopCount = (loopCount + 1) % rptIntvl;
   // END OF LOOP
 }
@@ -515,12 +519,12 @@ void getAndPostCSV() {
 parameters: none
 returns: void
 ******************************************************************************************************/
-void loopTimer(int flag, unsigned long z1) {
+void loopTimer(int flag, unsigned long z1, unsigned long z2, unsigned long z3) {
 // End-of-loop timing code
   unsigned long loopEnd = millis();
   if ((loopEnd - loopStart) > LOOP_TIME) { // Code took > LOOP_TIME
     char mBuf[BUF_LEN];
-    sprintf(mBuf, "Long lp time %ul; Flg:%d; NTP:%u", loopEnd - loopStart, flag, z1);
+    sprintf(mBuf, "Lg lp time %ul; Flg:%d; Mto: %u; QT:%u; NTP:%u", loopEnd - loopStart, flag, z3, z2, z1);
     postMessage(mBuf);  // log all long loops (> LOOP_TIME)
   }
   else {  // wait until LOOP_TIME has elapsed
