@@ -1,8 +1,8 @@
 /*************************************************************************************
 * Roof4.ino: MiS Roof ESP32 Code (Weather Station) with NTP                          *
 *                                                                                    *
-* Version: 0.1                                                                       *
-* Last updated: 14/04/2025 19:52                                                     *
+* Version: 0.5                                                                       *
+* Last updated: 15/04/2025 17:35                                                     *
 * Author: Jim Gunther                                                                *
 *                                                                                    *
 *                                                                                    *
@@ -64,7 +64,6 @@ unsigned long loopStart;
 int loopCount = 0;
 int rptIntvl = 120; // default value
 int maxGust;
-int prevDay = 10;  // any invalid day of week will do
 
 /******************************************************************************************************/
 
@@ -336,13 +335,12 @@ void setup() {
 
 void loop() {
   int flag = 0;
-  unsigned long m1, z1 = 0ul, z2 = 0ul, z3 = 0ul;
+  //unsigned long m1, m2, z1 = 0ul, z2 = 0ul, z3 = 0ul, z4 = 0ul, z5 = 0ul;
   server.handleClient();  // OTA
   loopStart = millis();
   qtClient.loop(); // keep MQTT going
-  
   // Loop timing zones start here
-  m1 = millis();
+  
   // ZONE 1: EVERY LOOP (1/4 sec) ----------------------------------------------------------------- 
   wi.updateMaxGust(); // 4 times/sec to catch gusts
   flag = wi.updateMeteo(loopCount, rptIntvl);  // updateMeteo uses loopCount to decide when to update each Meteo
@@ -354,48 +352,49 @@ void loop() {
     flag = flag | 256;
     //shedRequested();  // responds to any shed messages received (hourly)
   }
-  z3 = millis() - m1;
 
   // END ZONE 4 -----------------------------------------------------------------------------------
   
   // ZONE 12: EVERY 12 LOOPS (3 secs) -------------------------------------------------------------
+  //m2 = millis();
+  //z3 = m2 - m1;
   if ((loopCount % ZONE12) == 0) {
-    m1 = millis();
     if (!qtReconnect()) { // checks connection and attempts retry if none
       postMessage("MQTT failed");
     }
     blink();  // "normal" 3 second blink
-    z2 = millis() - m1;
     flag = flag | 512;
   }
+  //m1 = millis();
+  //z2 = m1 - m2;
   // END ZONE 12 ----------------------------------------------------------------------------------
   
   // ZONE SLOWEST: EVERY rptInterval LOOPS (DEFAULT 30 secs)
+    //z5 = 0ul;
     if (loopCount == 0) {
-      m1 = millis();
       if (timeClient.update()) {
         int ntpH = timeClient.getHours();
         int ntpM = timeClient.getMinutes();
         int ntpS = timeClient.getSeconds();
-        int ntpD = timeClient.getDay();
         flag = flag | 1024;
-        if ((ntpD != prevDay) && (ntpH == 1) && (ntpM == 0) && (ntpS >= 30)) {
-          // it's between 01:00:30 and 01:00:59 (UTC): time to reset (occurs only once a day as reset will take > 1 second!)
+        if ((ntpH == 1) && (ntpM == 0) && (ntpS >= 30)) {
+          // it's between 01:00:30 and 01:00:59 (UTC): time to reset: but wait a bit first!)
+          unsigned long finTime = millis() + 20000; // 20 secs
+          while (millis() < finTime) { delay(1); }
           esp_restart();
         }
-        prevDay = ntpD;
-        z1 = millis() - m1;
       }
-
+      //m2 = millis();
+      //z5 = m2 - m1;
       wi.WDChanged(true);
       getAndPostCSV();
       wi.resetAll();
       kom.checkWifi();  
     }
-  
+    //z1 = millis() - m1;
   //Loop timing zones end here--------------------------------------------------------------------
 
-  loopTimer(flag, z1, z2, z3);
+  loopTimer(flag);
   loopCount = (loopCount + 1) % rptIntvl;
   // END OF LOOP
 }
@@ -519,12 +518,12 @@ void getAndPostCSV() {
 parameters: none
 returns: void
 ******************************************************************************************************/
-void loopTimer(int flag, unsigned long z1, unsigned long z2, unsigned long z3) {
+void loopTimer(int flag) {
 // End-of-loop timing code
   unsigned long loopEnd = millis();
   if ((loopEnd - loopStart) > LOOP_TIME) { // Code took > LOOP_TIME
     char mBuf[BUF_LEN];
-    sprintf(mBuf, "Lg lp time %ul; Flg:%d; Mto: %u; QT:%u; NTP:%u", loopEnd - loopStart, flag, z3, z2, z1);
+    sprintf(mBuf, "Long loop time %u; Flag:%x", loopEnd - loopStart, flag);
     postMessage(mBuf);  // log all long loops (> LOOP_TIME)
   }
   else {  // wait until LOOP_TIME has elapsed
