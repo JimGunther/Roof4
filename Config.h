@@ -4,13 +4,10 @@
 /***********************************************************************************************
 *config.h: header file for commonly used constants (numbers and strings)                       *
 *                                                                                              *
-* Version: 0.2                                                                                 *
-* Last updated: 20/02/2025 10:02                                                               *
+* Version: 0.5                                                                                 *
+* Last updated: 17/04/2025 16:46                                                               *
 * Author: Jim Gunther 
 *
-* Change History
-*
-*	14/03/2025	0.2 - > 0.3	RDG		Added RED led & Updated RDG Home MQTT Server                                                                      *
 *
 ***********************************************************************************************/
 

@@ -2,7 +2,7 @@
 * Roof4.ino: MiS Roof ESP32 Code (Weather Station) with NTP                          *
 *                                                                                    *
 * Version: 0.5                                                                       *
-* Last updated: 15/04/2025 17:35                                                     *
+* Last updated: 18/04/2025 16:52                                                     *
 * Author: Jim Gunther                                                                *
 *                                                                                    *
 *                                                                                    *
@@ -10,10 +10,10 @@
 #include <WiFi.h>
 #include <NTPClient.h>
 #include <WiFiUdp.h>
-#include <WiFiClient.h> //OTA
-#include <WebServer.h>  //OTA
-#include <ESPmDNS.h>    //OTA
-#include <Update.h>     //OTA
+#include <WiFiClient.h>  //OTA
+#include <WebServer.h>   //OTA
+#include <ESPmDNS.h>     //OTA
+#include <Update.h>      //OTA
 #include <PubSubClient.h>
 
 /*
@@ -33,18 +33,18 @@ library Adafruit BusIO at version 1.17.0
 library SPI at version 3.1.3 
 library BH1750 at version 1.3.0
  */
- 
+
 // Other includes
 #include "Config.h"
 #include "Komms.h"
 #include "WInputs.h"
 
 // Class instantiation
-WebServer server(80); // OTA
+WebServer server(80);  // OTA
 Komms kom;
 WInputs wi;
 
-const char* host = "esp32"; // OTA
+const char* host = "esp32";  // OTA
 
 //===================================================================================================================
 // MQTT stuff
@@ -62,8 +62,9 @@ char versionBuf[52];
 // Array and variables initiation
 unsigned long loopStart;
 int loopCount = 0;
-int rptIntvl = 120; // default value
+int rptIntvl = 120;  // default value
 int maxGust;
+unsigned long rebootTime;
 
 /******************************************************************************************************/
 
@@ -108,22 +109,20 @@ bool qtReconnect() {
   int numTries = 0;
 
   while (!qtClient.connected() && (numTries++ < 3)) {
-    fn_RedLed( ON );
-	Serial.print("Attempting MQTT connection...");
+    fn_RedLed(ON);
+    Serial.print("Attempting MQTT connection...");
     // Attempt to connect
     if (qtClient.connect("misRoof")) {
       Serial.println("connected");
       qtClient.loop();
-	  fn_RedLed( OFF );
-    }
-    else {
+      fn_RedLed(OFF);
+    } else {
       Serial.print("failed, rc=");
       Serial.print(qtClient.state());
       Serial.println(" try again in 3 seconds");
       // Wait 3 seconds before retrying
       delay(3000);
     }
-
   }
 
   return qtClient.connected();
@@ -141,12 +140,12 @@ void publishMQTT(bool init, bool star, const char* csv) {
   int len = strlen(csv);
   buf[0] = '$';
   strcpy(buf + 1, csv);
-  if (init){
+  if (init) {
     qtClient.publish(TOPIC_INIT, buf, false);
     return;
   }
   if (star) qtClient.publish(TOPIC_STAR, buf, false);
-  else qtClient.publish(TOPIC_CSV, buf, false); 
+  else qtClient.publish(TOPIC_CSV, buf, false);
 }
 
 /********************************************************************************************************************
@@ -159,7 +158,7 @@ void postMessage(const char* txt) {
   char buf[BUF_LEN];
   buf[0] = '$';
   strcpy(buf + 1, txt);
-  qtClient.publish(TOPIC_MESS, buf, false); 
+  qtClient.publish(TOPIC_MESS, buf, false);
 }
 // BEGIN NTP ===================================================================================================================
 
@@ -173,59 +172,59 @@ NTPClient timeClient(ntpUDP);
 /*
  * Login page
  */
-const char* loginIndex = 
- "<form name='loginForm'>"
-    "<table width='20%' bgcolor='A09F9F' align='center'>"
-        "<tr>"
-            "<td colspan=2>"
-                "<center><font size=4><b>ESP32 Login Page</b></font></center>"
-                "<br>"
-            "</td>"
-            "<br>"
-            "<br>"
-        "</tr>"
-        "<td>Username:</td>"
-        "<td><input type='text' size=25 name='userid'><br></td>"
-        "</tr>"
-        "<br>"
-        "<br>"
-        "<tr>"
-            "<td>Password:</td>"
-            "<td><input type='Password' size=25 name='pwd'><br></td>"
-            "<br>"
-            "<br>"
-        "</tr>"
-        "<tr>"
-            "<td><input type='submit' onclick='check(this.form)' value='Login'></td>"
-        "</tr>"
-    "</table>"
-"</form>"
-"<script>"
-    "function check(form)"
-    "{"
-    "if(form.userid.value=='MIS' && form.pwd.value=='mispas')"
-    "{"
-    "window.open('/serverIndex')"
-    "}"
-    "else"
-    "{"
-    " alert('Error Password or Username')/*displays error message*/"
-    "}"
-    "}"
-"</script>";
- 
+const char* loginIndex =
+  "<form name='loginForm'>"
+  "<table width='20%' bgcolor='A09F9F' align='center'>"
+  "<tr>"
+  "<td colspan=2>"
+  "<center><font size=4><b>ESP32 Login Page</b></font></center>"
+  "<br>"
+  "</td>"
+  "<br>"
+  "<br>"
+  "</tr>"
+  "<td>Username:</td>"
+  "<td><input type='text' size=25 name='userid'><br></td>"
+  "</tr>"
+  "<br>"
+  "<br>"
+  "<tr>"
+  "<td>Password:</td>"
+  "<td><input type='Password' size=25 name='pwd'><br></td>"
+  "<br>"
+  "<br>"
+  "</tr>"
+  "<tr>"
+  "<td><input type='submit' onclick='check(this.form)' value='Login'></td>"
+  "</tr>"
+  "</table>"
+  "</form>"
+  "<script>"
+  "function check(form)"
+  "{"
+  "if(form.userid.value=='MIS' && form.pwd.value=='mispas')"
+  "{"
+  "window.open('/serverIndex')"
+  "}"
+  "else"
+  "{"
+  " alert('Error Password or Username')/*displays error message*/"
+  "}"
+  "}"
+  "</script>";
+
 /*
  * Server Index Page
  */
- 
-const char* serverIndex = 
-"<script src='https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js'></script>"
-"<form method='POST' action='#' enctype='multipart/form-data' id='upload_form'>"
-   "<input type='file' name='update'>"
-        "<input type='submit' value='Update'>"
-    "</form>"
- "<div id='prg'>progress: 0%</div>"
- "<script>"
+
+const char* serverIndex =
+  "<script src='https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js'></script>"
+  "<form method='POST' action='#' enctype='multipart/form-data' id='upload_form'>"
+  "<input type='file' name='update'>"
+  "<input type='submit' value='Update'>"
+  "</form>"
+  "<div id='prg'>progress: 0%</div>"
+  "<script>"
   "$('form').submit(function(e){"
   "e.preventDefault();"
   "var form = $('#upload_form')[0];"
@@ -247,13 +246,13 @@ const char* serverIndex =
   "return xhr;"
   "},"
   "success:function(d, s) {"
-  "console.log('success!')" 
- "},"
- "error: function (a, b, c) {"
- "}"
- "});"
- "});"
- "</script>";
+  "console.log('success!')"
+  "},"
+  "error: function (a, b, c) {"
+  "}"
+  "});"
+  "});"
+  "</script>";
 
 // END OTA =====================================================================================================================
 
@@ -265,16 +264,16 @@ void setup() {
   pinMode(LEDPin, OUTPUT);
   pinMode(RedPin, OUTPUT);
 
-  fn_RedLed( ON );
+  fn_RedLed(ON);
 
   kom.begin();
   wi.begin();
-   
+
   tryMQTTStart();
 
   // OTA START ================================================================================================
   /*use mdns for host name resolution*/
-  if (!MDNS.begin(host)) { //http://esp32.local
+  if (!MDNS.begin(host)) {  //http://esp32.local
     Serial.println("Error setting up MDNS responder!");
     while (1) {
       delay(1000);
@@ -291,44 +290,56 @@ void setup() {
     server.send(200, "text/html", serverIndex);
   });
   /*handling uploading firmware file */
-  server.on("/update", HTTP_POST, []() {
-    server.sendHeader("Connection", "close");
-    server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
-    ESP.restart();
-  }, []() {
-    HTTPUpload& upload = server.upload();
-    if (upload.status == UPLOAD_FILE_START) {
-      Serial.printf("Update: %s\n", upload.filename.c_str());
-      if (!Update.begin(UPDATE_SIZE_UNKNOWN)) { //start with max available size
-        Update.printError(Serial);
+  server.on(
+    "/update", HTTP_POST, []() {
+      server.sendHeader("Connection", "close");
+      server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
+      ESP.restart();
+    },
+    []() {
+      HTTPUpload& upload = server.upload();
+      if (upload.status == UPLOAD_FILE_START) {
+        Serial.printf("Update: %s\n", upload.filename.c_str());
+        if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {  //start with max available size
+          Update.printError(Serial);
+        }
+      } else if (upload.status == UPLOAD_FILE_WRITE) {
+        /* flashing firmware to ESP*/
+        if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
+          Update.printError(Serial);
+        }
+      } else if (upload.status == UPLOAD_FILE_END) {
+        if (Update.end(true)) {  //true to set the size to the current progress
+          Serial.printf("Update Success: %u\nRebooting...\n", upload.totalSize);
+        } else {
+          Update.printError(Serial);
+        }
       }
-    } else if (upload.status == UPLOAD_FILE_WRITE) {
-      /* flashing firmware to ESP*/
-      if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
-        Update.printError(Serial);
-      }
-    } else if (upload.status == UPLOAD_FILE_END) {
-      if (Update.end(true)) { //true to set the size to the current progress
-        Serial.printf("Update Success: %u\nRebooting...\n", upload.totalSize);
-      } else {
-        Update.printError(Serial);
-      }
-    }
-  });
+    });
   server.begin();
 
   // OTA END ==================================================================================================
+  
+  // Set reboot countdown
   timeClient.begin();
   timeClient.setTimeOffset(0);  // UTC
+  int waitCount = 100;
+  while (waitCount > 0) {
+    if (timeClient.update()) break;
+    delay(10);
+    waitCount--;
+  }
+
+  int hrTime = timeClient.getHours();
+  rebootTime = millis() + 1000 * 3600 * (24 - hrTime); // milliseconds
 
   qtClient.subscribe(TOPIC_SETUP, 1);
   loopCount = 0;
   requestRptInterval();
 
   qtClient.unsubscribe(TOPIC_SETUP);
-  //qtClient.subscribe(TOPIC_IN, 1);
   logStartupSuccess();
-  fn_RedLed( OFF );
+  fn_RedLed(OFF);
 }
 
 //-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -338,60 +349,43 @@ void loop() {
   //unsigned long m1, m2, z1 = 0ul, z2 = 0ul, z3 = 0ul, z4 = 0ul, z5 = 0ul;
   server.handleClient();  // OTA
   loopStart = millis();
-  qtClient.loop(); // keep MQTT going
+  qtClient.loop();  // keep MQTT going
   // Loop timing zones start here
-  
-  // ZONE 1: EVERY LOOP (1/4 sec) ----------------------------------------------------------------- 
-  wi.updateMaxGust(); // 4 times/sec to catch gusts
+
+  // ZONE 1: EVERY LOOP (1/4 sec) -----------------------------------------------------------------
+  wi.updateMaxGust();                          // 4 times/sec to catch gusts
   flag = wi.updateMeteo(loopCount, rptIntvl);  // updateMeteo uses loopCount to decide when to update each Meteo
   // END ZONE 1 -----------------------------------------------------------------------------------
-  
+
   //ZONE 4: EVERY 4 LOOPS (1 sec) ---------------------------------------------------------
   if ((loopCount % ZONE4) == 0) {
-    wi.WDChanged(false); // updates the set of 32 values used to produce WD stats
+    wi.WDChanged(false);  // updates the set of 32 values used to produce WD stats
     flag = flag | 256;
     //shedRequested();  // responds to any shed messages received (hourly)
   }
 
   // END ZONE 4 -----------------------------------------------------------------------------------
-  
+
   // ZONE 12: EVERY 12 LOOPS (3 secs) -------------------------------------------------------------
-  //m2 = millis();
-  //z3 = m2 - m1;
   if ((loopCount % ZONE12) == 0) {
-    if (!qtReconnect()) { // checks connection and attempts retry if none
+    if (!qtReconnect()) {  // checks connection and attempts retry if none
       postMessage("MQTT failed");
     }
     blink();  // "normal" 3 second blink
     flag = flag | 512;
   }
-  //m1 = millis();
-  //z2 = m1 - m2;
   // END ZONE 12 ----------------------------------------------------------------------------------
-  
+
   // ZONE SLOWEST: EVERY rptInterval LOOPS (DEFAULT 30 secs)
-    //z5 = 0ul;
-    if (loopCount == 0) {
-      if (timeClient.update()) {
-        int ntpH = timeClient.getHours();
-        int ntpM = timeClient.getMinutes();
-        int ntpS = timeClient.getSeconds();
-        flag = flag | 1024;
-        if ((ntpH == 1) && (ntpM == 0) && (ntpS >= 30)) {
-          // it's between 01:00:30 and 01:00:59 (UTC): time to reset: but wait a bit first!)
-          unsigned long finTime = millis() + 20000; // 20 secs
-          while (millis() < finTime) { delay(1); }
-          esp_restart();
-        }
-      }
-      //m2 = millis();
-      //z5 = m2 - m1;
-      wi.WDChanged(true);
-      getAndPostCSV();
-      wi.resetAll();
-      kom.checkWifi();  
+  if (loopCount == 0) {
+    if (millis() > rebootTime) {
+      esp_restart();
     }
-    //z1 = millis() - m1;
+    wi.WDChanged(true);
+    getAndPostCSV();
+    wi.resetAll();
+    kom.checkWifi();
+  }
   //Loop timing zones end here--------------------------------------------------------------------
 
   loopTimer(flag);
@@ -410,14 +404,14 @@ returns: void
 *****************************************************************************************************/
 void tryMQTTStart() {
   int qtCount = 0;
-  while ( !qtSetup(kom.getNwkIx()) ) {
-    fn_RedLed( ON );
+  while (!qtSetup(kom.getNwkIx())) {
+    fn_RedLed(ON);
     Serial.println("MQTT setup failed. No MQTT comms. Check RPi is powered and running.");
     digitalWrite(LEDPin, !digitalRead(LEDPin));
     delay(800);
     if (qtCount++ == 11) esp_restart();
   }
-  fn_RedLed( OFF );
+  fn_RedLed(OFF);
 }
 
 /*****************************************************************************************************
@@ -447,7 +441,7 @@ void requestRptInterval() {
       bContinue = false;
     }
     loops++;
-    delay(100); // Review this interval once Python code is written!
+    delay(100);  // Review this interval once Python code is written!
   }
 }
 
@@ -483,22 +477,22 @@ parameters: none
 returns: void
 ************************************************************************************************************/
 void blink() {
-  if (wi.getLight4Blink() > MIN_LIGHT) { // daytime
-    digitalWrite(LEDPin, !digitalRead(LEDPin)); // blink
-  } else { // nighttime
+  if (wi.getLight4Blink() > MIN_LIGHT) {         // daytime
+    digitalWrite(LEDPin, !digitalRead(LEDPin));  // blink
+  } else {                                       // nighttime
     digitalWrite(LEDPin, LOW);
   }
 }
+
 /*
 2a.	Operate Red LED
 */
-void fn_RedLed( int state )
-{
-  digitalWrite(RedPin, state );
-}	
+void fn_RedLed(int state) {
+  digitalWrite(RedPin, state);
+}
 
 /************************************************************************************************************
-3. getAndPostCSV(): gathers CSV data and posts to Shed
+3. getAndPostCSV(): gathers CSV data and posts to Shed (and resets counters/max)
 parameters: none
 returns: void
 *************************************************************************************************************/
@@ -507,10 +501,11 @@ void getAndPostCSV() {
   char starBuf[STARBUF_LEN];
   wi.getStarCSV(starBuf);
   publishMQTT(false, true, starBuf);
-  Serial.println(starBuf); // TEMP
+  Serial.println(starBuf);  // TEMP
   wi.getFreqCSV(freqBuf);
   publishMQTT(false, false, freqBuf);
-  Serial.println(freqBuf); // TEMP
+  wi.resetAll();
+  Serial.println(freqBuf);  // TEMP
 }
 
 /******************************************************************************************************
@@ -519,17 +514,15 @@ parameters: none
 returns: void
 ******************************************************************************************************/
 void loopTimer(int flag) {
-// End-of-loop timing code
+  // End-of-loop timing code
   unsigned long loopEnd = millis();
-  if ((loopEnd - loopStart) > LOOP_TIME) { // Code took > LOOP_TIME
+  if ((loopEnd - loopStart) > LOOP_TIME) {  // Code took > LOOP_TIME
     char mBuf[BUF_LEN];
     sprintf(mBuf, "Long loop time %u; Flag:%x", loopEnd - loopStart, flag);
     postMessage(mBuf);  // log all long loops (> LOOP_TIME)
-  }
-  else {  // wait until LOOP_TIME has elapsed
-    while(millis() - loopStart < LOOP_TIME) {
+  } else {              // wait until LOOP_TIME has elapsed
+    while (millis() - loopStart < LOOP_TIME) {
       delay(1);
     }
   }
 }
-

@@ -7,7 +7,7 @@
 * WInputs.cpp: WInputs class: handles inerface with all sensors and counters (polling rain)    *
 *                                                                                              *
 * Version: 0.5                                                                                 *
-* Last updated: 13/04/2025 20:19                                                               *
+* Last updated: 18/04/2025 16:46                                                               *
 * Author: Jim Gunther                                                                          *
 *                                                                                              *
 ***********************************************************************************************/
@@ -88,24 +88,14 @@ void WInputs::begin() {
   Serial.println(_sensorStatus);  
 }; 
 
-/*****************************************************************************************************
-indexOf(): gets the index of a Weather item from its 2-character code
-parameters: const char* s: the 2-character code
-returns: int: the index number
-******************************************************************************************************/
-int WInputs::indexOf(const char* s) {
-  int ix = strstr(INDEXER, s) - INDEXER;
-  return ix >> 1;
-}
-
 /**************************************************************************************************
 updateMaxGust(): results stored in one of 12 array posistions (12 == 3 secs speed measurement interval / 0.25 secs poll interval)
 (polled 4 times a second to catch gusts)
 parameters: none
 returns: void
 ***************************************************************************************************/
-void WInputs::updateMaxGust() { // CHECK HERE!!
-  int n = indexOf("Gu");
+void WInputs::updateMaxGust() { 
+  int n = 2; // index for gust
   int revsNow = _currRevs; // from last interrupt
   int revsInc = revsNow - _pollRevs[_ixPoll];
   revsInc = max(0, revsInc);
@@ -136,9 +126,6 @@ returns: void
 ***************************************************************************************************/
 void WInputs::WDChanged(bool endLoop) 
 {
-//  Serial.print( "Direction : " );
-//  Serial.println( analogRead( WDPin ) );
-
   int currA7 = analogRead(WDPin) >> 7;
   int revsNow = _currRevs; // _currRevs is volatile
   if ((currA7 != _prevA7) || endLoop) {
@@ -177,16 +164,16 @@ int WInputs::updateMeteo(int loopCount, int maxLoop) {
   switch (ix) {
     case 0: // rainfall/ bucket tips
       _items[ix].val = (float)_tipsCount;
-      flag = 1;
+      //flag = 1;
       break;
     case 1: // wind /revs
       _items[ix].val = (float)_currRevs;
-      flag = 2;
+      //flag = 2;
       break;
     case 2: // gusts
       break; // nothing to do as gusts are updated more frequently
     case 3:
-      _items[ix].val = 0; // RPi calculated modal WD from Star data
+      _items[ix].val = analogRead(WDPin); // RPi calculated modal WD from Star data: this for "raw" data only
       break;
     case 4:
       _hum = 98.0f;
@@ -196,35 +183,35 @@ int WInputs::updateMeteo(int loopCount, int maxLoop) {
         tmp = temp.temperature;
       }
       _items[ix].val = tmp;
-      flag = 4;
+      //flag = 4;
       break;
     case 5: // humidity should be stored 0.5 secs ago by line 190
       _items[ix].val = _hum;
-      flag = 8;
+      //flag = 8;
       break;
     case 6: // pressure:
       p = 97.0f;
       if ((_sensorStatus & 1) == 0) _bmp.getPressure(&p);
       _items[ix].val = 0.01f * p;
-      flag = 16;
+      //flag = 16;
       break;      
     case 7: // light 1 :: 11 * log10(1 + lux)
       op = 96.0f;
       if ((_sensorStatus & 4) == 0) op = _bh1750a.readLightLevel();
       if (op < 0.0) op = 0.0;
       _items[ix].val = op;
-      flag = 32;
+      //flag = 32;
       break;
     case 8: // light 2
       op = 95.0f;
       if ((_sensorStatus & 8) == 0) op = _bh1750b.readLightLevel();
       if (op < 0.0) op = 0.0;
       _items[ix].val = op;
-      flag = 64;
+      //flag = 64;
       break;
     case 9:
       _items[ix].val = (float)analogRead(VoltsPin);
-      flag = 128;
+      //flag = 128;
       break;
     default:
       break;
@@ -243,6 +230,7 @@ void WInputs::resetAll() {
   _currRevs = 0;
   _prevWDRevs = 0;
   _tipsCount = 0;
+  _items[2].val = 0;  // reset max gust
 }
 
 /*******************************************************************************************

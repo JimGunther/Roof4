@@ -32,7 +32,6 @@ class WInputs {
     float getLight4Blink();
     int updateMeteo(int loopCount, int maxLoop);
     void resetAll();
-    //void resetCounters(int hr);
     bool getFreqCSV(char* buf);
     bool getStarCSV(char *buf);
     int getA7();
@@ -43,8 +42,6 @@ class WInputs {
     Adafruit_BMP085_Unified _bmp;
     BH1750 _bh1750a;
     BH1750 _bh1750b;  
-    
-    int indexOf(const char* s);
     
     int _ixPoll;
     uint _sensorStatus;
