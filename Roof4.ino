@@ -2,7 +2,7 @@
 * Roof4.ino: MiS Roof ESP32 Code (Weather Station) with NTP                          *
 *                                                                                    *
 * Version: 0.5                                                                       *
-* Last updated: 18/04/2025 16:52                                                     *
+* Last updated: 19/04/2025 17:56                                                     *
 * Author: Jim Gunther                                                                *
 *                                                                                    *
 *                                                                                    *
@@ -323,14 +323,19 @@ void setup() {
   // Set reboot countdown
   timeClient.begin();
   timeClient.setTimeOffset(0);  // UTC
-  int waitCount = 100;
+  int waitCount = 50;
+  bool updated = false;
   while (waitCount > 0) {
-    if (timeClient.update()) break;
+    if (timeClient.update()) {
+      updated = true;
+      break;
+    }
     delay(10);
     waitCount--;
   }
 
-  int hrTime = timeClient.getHours();
+  int hrTime = 0; // default to 00:00 if no NTP
+  if (updated) hrTime = timeClient.getHours();
   rebootTime = millis() + 1000 * 3600 * (24 - hrTime); // milliseconds
 
   qtClient.subscribe(TOPIC_SETUP, 1);
