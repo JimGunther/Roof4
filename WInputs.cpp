@@ -7,7 +7,7 @@
 * WInputs.cpp: WInputs class: handles inerface with all sensors and counters (polling rain)    *
 *                                                                                              *
 * Version: 0.5                                                                                 *
-* Last updated: 18/04/2025 16:46                                                               *
+* Last updated: 22/04/2025 16:04                                                               *
 * Author: Jim Gunther                                                                          *
 *                                                                                              *
 ***********************************************************************************************/
@@ -17,16 +17,14 @@
 
 volatile unsigned long _lastRTime  = 0;
 volatile int _tipsCount; // number of rain bucket tips (cumulative per hour)
-volatile bool _first = true;
 const int _margin = 5;  // minimum milliseconds between checks: insurance against contact bounce: ?? STILL NEEDED FOR HALL EFFECT SENSORS???  
-const int _marginBuckets = 1000;  // 1 second (for now)
+const int _marginBuckets = 5;  // 5 milliseconds 
 
 void IRAM_ATTR buckets_tipped();
 void buckets_tipped() {
 unsigned long thisRTime = esp_timer_get_time() / 1000;
   if (thisRTime - _lastRTime > _marginBuckets) {
-    if (!_first) _tipsCount++;  // software always shows phantom bucket tip at startup / randomly?!
-    _first = false;
+    _tipsCount++;
     _lastRTime = thisRTime;
   }
 }
@@ -40,9 +38,7 @@ void IRAM_ATTR one_Rotation();
 void one_Rotation() {
   _thisSTime = esp_timer_get_time() / 1000;
   if (_thisSTime - _lastSTime > _margin) {
-    if (digitalRead(RevsPin) == LOW) {  
-       _currRevs++;
-    }
+    _currRevs++;
     _lastSTime = _thisSTime;
   }
 }
@@ -60,7 +56,7 @@ void WInputs::begin() {
   pinMode(VoltsPin, INPUT);
 
   attachInterrupt(digitalPinToInterrupt(RainPin), buckets_tipped, CHANGE); // rain buckets
-  attachInterrupt(digitalPinToInterrupt(RevsPin), one_Rotation, CHANGE);  // anemometer
+  attachInterrupt(digitalPinToInterrupt(RevsPin), one_Rotation, RISING);  // anemometer
 
   _tipsCount = 0;
   _prevTip = digitalRead(RainPin);
