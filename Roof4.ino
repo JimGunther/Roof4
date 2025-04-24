@@ -2,7 +2,7 @@
 * Roof4.ino: MiS Roof ESP32 Code (Weather Station) with NTP                          *
 *                                                                                    *
 * Version: 0.5                                                                       *
-* Last updated: 19/04/2025 17:56                                                     *
+* Last updated: 24/04/2025 12:11                                                     *
 * Author: Jim Gunther                                                                *
 *                                                                                    *
 *                                                                                    *
@@ -162,6 +162,7 @@ void postMessage(const char* txt) {
 }
 // BEGIN NTP ===================================================================================================================
 
+// Library object constructors only (assume no crash here!!); MQTT not yet running
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP);
 
@@ -320,6 +321,9 @@ void setup() {
 
   // OTA END ==================================================================================================
   
+  // MQTT running; timeClient object about to be used for the first time
+  postMessage("About to start NTP request");
+
   // Set reboot countdown
   timeClient.begin();
   timeClient.setTimeOffset(0);  // UTC
@@ -337,6 +341,7 @@ void setup() {
   int hrTime = 0; // default to 00:00 if no NTP
   if (updated) hrTime = timeClient.getHours();
   rebootTime = millis() + 1000 * 3600 * (24 - hrTime); // milliseconds
+  postMessage("NTP task now completed");
 
   qtClient.subscribe(TOPIC_SETUP, 1);
   loopCount = 0;
