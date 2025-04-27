@@ -7,7 +7,7 @@
 * WInputs.cpp: WInputs class: handles inerface with all sensors and counters (polling rain)    *
 *                                                                                              *
 * Version: 0.5                                                                                 *
-* Last updated: 22/04/2025 16:04                                                               *
+* Last updated: 27/04/2025 16:06                                                               *
 * Author: Jim Gunther                                                                          *
 *                                                                                              *
 ***********************************************************************************************/
@@ -232,9 +232,9 @@ void WInputs::resetAll() {
 /*******************************************************************************************
 getFreqCSV(): code to concatenate all the weather values CSV strings and place in buffer (82+ bytes length)
 parameter: buf: char*: buffer to receive CSV text
-returns: bool: True if success, otherwise false
+returns: int: revs count this reporting interval
 ********************************************************************************************/
-bool WInputs::getFreqCSV(char* buf) {
+float WInputs::getFreqCSV(char* buf) {
   char mBuf[FITEM_LEN + 4];
   int i;
   int len = 0;
@@ -243,7 +243,7 @@ bool WInputs::getFreqCSV(char* buf) {
     strcpy(buf + len, mBuf);
     len = strlen(mBuf) + len;
   }
-  return true;
+  return _items[1].val;
 }
 
 /*******************************************************************************************
@@ -251,14 +251,15 @@ getStarCSV(): code to concatenate all the wind direction values CSV strings and 
 parameter: buf: char*: buffer to receive CSV text
 returns: bool: True if success, otherwise false
 ********************************************************************************************/
-bool WInputs::getStarCSV(char* buf) {
+int WInputs::getStarCSV(char* buf) {
   char mBuf[HITEM_LEN + 1];
-  int i;
+  int i, sum = 0;
   for (i = 0; i < NUM_SHIFT7; i++) {
     sprintf(mBuf, ",%02d", _wd7[i]);
     strcpy(buf + i * HITEM_LEN, mBuf);
+    sum += _wd7[i];
   }
-  return true;
+  return sum;
 }
 
 /*******************************************************************************************

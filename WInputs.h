@@ -11,7 +11,7 @@
 * WInputs.h: header file for WIinputs class (replaces both RainWind ans Sesnsors classes)      *
 *                                                                                              *
 * Version: 0.4                                                                                 *
-* Last updated: 13/04/2025 20:18                                                               *
+* Last updated: 27/04/2025 16:06                                                               *
 * Author: Jim Gunther                                                                          *
 *                                                                                              *
 ***********************************************************************************************/
@@ -32,8 +32,8 @@ class WInputs {
     float getLight4Blink();
     int updateMeteo(int loopCount, int maxLoop);
     void resetAll();
-    bool getFreqCSV(char* buf);
-    bool getStarCSV(char *buf);
+    float getFreqCSV(char* buf);
+    int getStarCSV(char *buf);
     int getA7();
 
   private:

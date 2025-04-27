@@ -2,7 +2,7 @@
 * Roof4.ino: MiS Roof ESP32 Code (Weather Station) with NTP                          *
 *                                                                                    *
 * Version: 0.5                                                                       *
-* Last updated: 24/04/2025 12:11                                                     *
+* Last updated: 27/04/2025 12:11                                                     *
 * Author: Jim Gunther                                                                *
 *                                                                                    *
 *                                                                                    *
@@ -509,11 +509,18 @@ returns: void
 void getAndPostCSV() {
   char freqBuf[BUF_LEN];
   char starBuf[STARBUF_LEN];
-  wi.getStarCSV(starBuf);
+  int sum;
+  float revs;
+  sum = wi.getStarCSV(starBuf);
   publishMQTT(false, true, starBuf);
   Serial.println(starBuf);  // TEMP
-  wi.getFreqCSV(freqBuf);
+  revs = wi.getFreqCSV(freqBuf);
   publishMQTT(false, false, freqBuf);
+  if ((int)revs != sum) {
+    char buf[BUF_LEN];
+    sprintf(buf, "Unequal revs: %d (revs): %d (sum)", revs, sum);
+    postMessage(buf);
+  }
   wi.resetAll();
   Serial.println(freqBuf);  // TEMP
 }
